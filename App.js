@@ -1,11 +1,22 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, Button, Alert, TextInput } from 'react-native';
+import { useState } from 'react';
 
 export default function App() {
+  const [text, setText] = useState("");
+
+const pressHandler = () => {
+  Alert.alert(text)
+}
+
   return (
     <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-      <StatusBar style="auto" />
+      <TextInput
+      placeholder='Enter some text'
+      onChange={text => setText(text)}
+      value={text}
+      />
+      <Button onPress={pressHandler}title = "Press!"/>
     </View>
   );
 }
