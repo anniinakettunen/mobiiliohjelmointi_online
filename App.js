@@ -1,52 +1,54 @@
-import { StyleSheet, Text, Button, TextInput, View } from 'react-native';
 import { useState, useEffect } from 'react';
+import {Alert,StyleSheet, View, Text, TextInput, Button } from 'react-native';
 
 export default function App() {
-  const [first, set1] = useState('');
-  const [second, set2] = useState('');
-  const [result, setResult] = useState(null);
+  const [target, setTarget] = useState(0);
+  const [guess, setGuess] = useState('');
+  const [message, setMessage] = useState('');
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (first === '' || second === '') {
-      setResult(null);
-    }
-  }, [first, second]);
+    setTarget(Math.floor(Math.random() * 100) + 1);
+  }, []);
 
-  const addNumbers = () => {
-    const sum = parseFloat(first) + parseFloat(second);
-    setResult(sum);
-  };
+  const checkGuess = () => {
+  const num = parseInt(guess);
 
-  const subtractNumbers = () => {
-    const difference = parseFloat(first) - parseFloat(second);
-    setResult(difference);
+  if (isNaN(num)) {
+    setMessage('Please enter a number');
+    return;
   }
 
-  return (
+  if (num < target) {
+    setMessage(`Your guess ${guess} is too low`);
+  } else if (num > target) {
+    setMessage(`Your guess ${guess} is too high`);
+  } else {
+    Alert.alert(
+    '',
+    `You guessed the number in ${count + 1} guesses`,
+    [{ text: 'OK' }]
+  );
+  
+  }
+
+  setCount(count + 1);
+  setGuess('');
+};
+
+ return (
     <View style={styles.container}>
-      <Text style={styles.resultText}>
-        {result !== null ? `Result: ${result}` : 'Enter numbers:'}
-      </Text>
-
+      <Text style={styles.resultText}>Guess a number between 1–100</Text>
       <TextInput
-        style={styles.input}
+        value={guess}
+        onChangeText={setGuess}
         keyboardType="numeric"
-        value={first}
-        onChangeText={set1}
-        placeholder="First number"
-      />
-      <TextInput
         style={styles.input}
-        keyboardType="numeric"
-        value={second}
-        onChangeText={set2}
-        placeholder="Second number"
       />
-
       <View style={styles.buttonContainer}>
-        <Button title="+" onPress={addNumbers} />
-        <Button title="-" onPress={subtractNumbers} />
+        <Button title="Guess" onPress={checkGuess} />
       </View>
+      <Text style={styles.resultText}>{message}</Text>
     </View>
   );
 }
@@ -61,6 +63,7 @@ const styles = StyleSheet.create({
   resultText: {
     fontSize: 24,
     marginBottom: 20,
+    textAlign: 'center',
   },
   input: {
     height: 40,
@@ -72,10 +75,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 70,
     marginTop: 5,
   },
-
 });
+
+//Arvauspeli
