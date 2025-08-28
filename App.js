@@ -1,64 +1,39 @@
-import { StyleSheet, Text, Button, TextInput, View, FlatList } from 'react-native';
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { View, Text, TextInput, Button, FlatList, StyleSheet } from 'react-native';
 
 export default function App() {
-  const [first, set1] = useState('');
-  const [second, set2] = useState('');
-  const [result, setResult] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [item, setItem] = useState('');
+  const [list, setList] = useState([]);
 
-  useEffect(() => {
-    if (first === '' || second === '') {
-      setResult(null);
+  const addItem = () => {
+    if (item !== '') {
+      setList([...list, item]);
+      setItem('');
     }
-  }, [first, second]);
-
-  const addNumbers = () => {
-    const sum = parseFloat(first) + parseFloat(second);
-    const entry = `${first} + ${second} = ${sum}`;
-    setResult(sum);
-    setHistory(prev => [entry, ...prev]);
   };
 
-  const subtractNumbers = () => {
-    const difference = parseFloat(first) - parseFloat(second);
-    const entry = `${first} - ${second} = ${difference}`;
-    setResult(difference);
-    setHistory(prev => [entry, ...prev]);
+  const clearList = () => {
+    setList([]);
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.resultText}>
-        {result !== null ? `Result: ${result}` : 'Enter numbers:'}
-      </Text>
+      <Text style={styles.title}>Ostoslista</Text>
 
       <TextInput
         style={styles.input}
-        keyboardType="numeric"
-        value={first}
-        onChangeText={set1}
-        placeholder="First number"
-      />
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={second}
-        onChangeText={set2}
-        placeholder="Second number"
+        value={item}
+        onChangeText={text => setItem(text)}
+        placeholder="Kirjoita ostos"
       />
 
-      <View style={styles.buttonContainer}>
-        <Button title="+" onPress={addNumbers} />
-        <Button title="-" onPress={subtractNumbers} />
-      </View>
+      <Button title="Add" onPress={addItem} />
+      <Button title="Clear" onPress={clearList} />
 
-      <Text style={styles.historyTitle}>Calculator History</Text>
       <FlatList
-        style={styles.historyList}
-        data={history}
+        data={list}
+        renderItem={({ item }) => <Text>{item}</Text>}
         keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => <Text style={styles.historyItem}>{item}</Text>}
       />
     </View>
   );
@@ -66,44 +41,16 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center', 
-    alignItems: 'center',     
+    paddingTop: 80,
     padding: 20,
-    backgroundColor: '#fff',
   },
-  resultText: {
+  title: {
     fontSize: 24,
-    marginBottom: 20,
-  },
-  input: {
-    height: 40,
-    borderColor: 'black',
-    borderWidth: 1,
-    width: 150,
-    marginBottom: 5,
-    paddingHorizontal: 10,
-    textAlign: 'center',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 70,
-    marginTop: 5,
-  },
-  historyTitle: {
-    fontSize: 20,
-    marginTop: 20,
     marginBottom: 10,
   },
-  historyList: {
-    maxHeight: 350, 
-    width: '100%',
-  },
-  historyItem: {
-    fontSize: 16,
-    paddingVertical: 2,
-    textAlign: 'center',
+  input: {
+    borderWidth: 1,
+    padding: 8,
+    marginBottom: 10,
   },
 });
-
