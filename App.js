@@ -1,81 +1,56 @@
-import { StyleSheet, Text, Button, TextInput, View } from 'react-native';
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { View, Text, TextInput, Button, FlatList, StyleSheet } from 'react-native';
 
 export default function App() {
-  const [first, set1] = useState('');
-  const [second, set2] = useState('');
-  const [result, setResult] = useState(null);
+  const [item, setItem] = useState('');
+  const [list, setList] = useState([]);
 
-  useEffect(() => {
-    if (first === '' || second === '') {
-      setResult(null);
+  const addItem = () => {
+    if (item !== '') {
+      setList([...list, item]);
+      setItem('');
     }
-  }, [first, second]);
-
-  const addNumbers = () => {
-    const sum = parseFloat(first) + parseFloat(second);
-    setResult(sum);
   };
 
-  const subtractNumbers = () => {
-    const difference = parseFloat(first) - parseFloat(second);
-    setResult(difference);
-  }
+  const clearList = () => {
+    setList([]);
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.resultText}>
-        {result !== null ? `Result: ${result}` : 'Enter numbers:'}
-      </Text>
+      <Text style={styles.title}>Ostoslista</Text>
 
       <TextInput
         style={styles.input}
-        keyboardType="numeric"
-        value={first}
-        onChangeText={set1}
-        placeholder="First number"
-      />
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={second}
-        onChangeText={set2}
-        placeholder="Second number"
+        value={item}
+        onChangeText={text => setItem(text)}
+        placeholder="Kirjoita ostos"
       />
 
-      <View style={styles.buttonContainer}>
-        <Button title="+" onPress={addNumbers} />
-        <Button title="-" onPress={subtractNumbers} />
-      </View>
+      <Button title="Add" onPress={addItem} />
+      <Button title="Clear" onPress={clearList} />
+
+      <FlatList
+        data={list}
+        renderItem={({ item }) => <Text>{item}</Text>}
+        keyExtractor={(item, index) => index.toString()}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingTop: 80,
     padding: 20,
   },
-  resultText: {
+  title: {
     fontSize: 24,
-    marginBottom: 20,
+    marginBottom: 10,
   },
   input: {
-    height: 40,
-    borderColor: 'black',
     borderWidth: 1,
-    width: 150,
-    marginBottom: 5,
-    paddingHorizontal: 10,
-    textAlign: 'center',
+    padding: 8,
+    marginBottom: 10,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 70,
-    marginTop: 5,
-  },
-
 });
