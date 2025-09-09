@@ -1,39 +1,52 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Button, FlatList, StyleSheet } from 'react-native';
+import { StyleSheet, View, TextInput, Button, ActivityIndicator, FlatList, Image, Text, StatusBar } from 'react-native';
 
 export default function App() {
-  const [item, setItem] = useState('');
-  const [list, setList] = useState([]);
+  const [ingredient, setIngredient] = useState('');
+  const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const addItem = () => {
-    if (item !== '') {
-      setList([...list, item]);
-      setItem('');
-    }
-  };
+  const handleSearch = () => {
+    setLoading(true);
 
-  const clearList = () => {
-    setList([]);
+    fetch(`https://www.themealdb.com/api/json/v1/1/filter.php?i=${ingredient}`)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Virhe haussa: ' + response.statusText);
+        }
+        return response.json();
+      })
+      .then(data => {
+        setRecipes(data.meals || []);
+      })
+      .catch(error => {
+        console.error(error);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Ostoslista</Text>
-
+      <StatusBar hidden />
       <TextInput
         style={styles.input}
-        value={item}
-        onChangeText={text => setItem(text)}
-        placeholder="Kirjoita ostos"
+        placeholder="Syötä raaka-aine (esim. tomato)"
+        value={ingredient}
+        onChangeText={setIngredient}
       />
-
-      <Button title="Add" onPress={addItem} />
-      <Button title="Clear" onPress={clearList} />
-
+      <Button title="Hae" onPress={handleSearch} />
+      {loading && <ActivityIndicator size="large" />}
       <FlatList
-        data={list}
-        renderItem={({ item }) => <Text>{item}</Text>}
-        keyExtractor={(item, index) => index.toString()}
+        data={recipes}
+        keyExtractor={(item) => item.idMeal}
+        renderItem={({ item }) => (
+          <View style={styles.item}>
+            <Image source={{ uri: item.strMealThumb }} style={styles.image} />
+            <Text style={styles.title}>{item.strMeal}</Text>
+          </View>
+        )}
       />
     </View>
   );
@@ -41,16 +54,28 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 80,
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    marginBottom: 10,
+    marginTop: 50,
+    padding: 10,
   },
   input: {
-    borderWidth: 1,
-    padding: 8,
+    fontSize: 18,
+    width: '100%',
     marginBottom: 10,
+    borderBottomWidth: 1,
+    padding: 5,
+  },
+  item: {
+    marginVertical: 10,
+    alignItems: 'center',
+  },
+  image: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+  },
+  title: {
+    fontSize: 18,
+    marginTop: 5,
+    fontWeight: 'bold',
   },
 });
