@@ -1,111 +1,133 @@
-// valuuttamuunnin tehtävä
-
-import { StyleSheet, Text, Button, TextInput, View, FlatList } from 'react-native';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, TextInput, Button, Text, ActivityIndicator, Alert } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 
 export default function App() {
-  const [first, set1] = useState('');
-  const [second, set2] = useState('');
+  const [amount, setAmount] = useState('');
+  const [currencies, setCurrencies] = useState([]);
+  const [selectedCurrency, setSelectedCurrency] = useState('');
   const [result, setResult] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const API_KEY = '1E5gKXHQMLG2gg1rbmcTkR8EXniDrdHf'; 
 
   useEffect(() => {
-    if (first === '' || second === '') {
-      setResult(null);
-    }
-  }, [first, second]);
+    fetchRates();
+  }, []);
 
-  const addNumbers = () => {
-    const sum = parseFloat(first) + parseFloat(second);
-    const entry = `${first} + ${second} = ${sum}`;
-    setResult(sum);
-    setHistory(prev => [entry, ...prev]);
+  const fetchRates = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.apilayer.com/exchangerates_data/latest?base=EUR', {
+        headers: {
+          'apikey': API_KEY,
+        },
+      });
+
+      const text = await response.text();
+      console.log('API response:', text);
+
+      const data = JSON.parse(text);
+      if (!data || typeof data.rates !== 'object' || Object.keys(data.rates).length === 0) {
+        throw new Error('API ei palauttanut valuuttakursseja');
+      }
+
+      const currencyCodes = Object.keys(data.rates);
+      setCurrencies(currencyCodes);
+    } catch (error) {
+      console.error('Virhe valuuttakursseissa:', error);
+      Alert.alert('Virhe', 'Valuuttakurssien haku epäonnistui. Tarkista API-avain tai yhteys.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const subtractNumbers = () => {
-    const difference = parseFloat(first) - parseFloat(second);
-    const entry = `${first} - ${second} = ${difference}`;
-    setResult(difference);
-    setHistory(prev => [entry, ...prev]);
+  const convertToEuro = async () => {
+    if (!selectedCurrency || !amount) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch('https://api.apilayer.com/exchangerates_data/latest?base=EUR', {
+        headers: {
+          'apikey': API_KEY,
+        },
+      });
+
+      const data = await response.json();
+      const rate = data.rates[selectedCurrency];
+      if (!rate) {
+        throw new Error('Valittu valuutta ei löytynyt');
+      }
+
+      const converted = parseFloat(amount) / rate;
+      setResult(converted.toFixed(2));
+    } catch (error) {
+      console.error('Virhe muunnoksessa:', error);
+      Alert.alert('Virhe', 'Muunnos epäonnistui.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.resultText}>
-        {result !== null ? `Result: ${result}` : 'Enter numbers:'}
-      </Text>
-
+      <Text style={styles.label}>Syötä summa:</Text>
       <TextInput
         style={styles.input}
         keyboardType="numeric"
-        value={first}
-        onChangeText={set1}
-        placeholder="First number"
-      />
-      <TextInput
-        style={styles.input}
-        keyboardType="numeric"
-        value={second}
-        onChangeText={set2}
-        placeholder="Second number"
+        value={amount}
+        onChangeText={setAmount}
+        placeholder="Esim. 100"
       />
 
-      <View style={styles.buttonContainer}>
-        <Button title="+" onPress={addNumbers} />
-        <Button title="-" onPress={subtractNumbers} />
-      </View>
+      <Text style={styles.label}>Valitse valuutta:</Text>
+      {currencies.length > 0 ? (
+        <Picker
+          selectedValue={selectedCurrency}
+          onValueChange={(itemValue) => setSelectedCurrency(itemValue)}
+          style={styles.picker}
+        >
+          {currencies.map((code) => (
+            <Picker.Item key={code} label={code} value={code} />
+          ))}
+        </Picker>
+      ) : (
+        <Text style={{ fontStyle: 'italic' }}>Valuuttalista latautuu...</Text>
+      )}
 
-      <Text style={styles.historyTitle}>Calculator History</Text>
-      <FlatList
-        style={styles.historyList}
-        data={history}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item }) => <Text style={styles.historyItem}>{item}</Text>}
-      />
+      <Button title="Muunna euroiksi" onPress={convertToEuro} />
+      {loading && <ActivityIndicator size="large" />}
+      {result && (
+        <Text style={styles.result}>
+          {amount} {selectedCurrency} = {result} EUR
+        </Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: 'center', 
-    alignItems: 'center',     
+    marginTop: 50,
     padding: 20,
-    backgroundColor: '#fff',
   },
-  resultText: {
-    fontSize: 24,
-    marginBottom: 20,
+  label: {
+    fontSize: 18,
+    marginVertical: 10,
   },
   input: {
-    height: 40,
-    borderColor: 'black',
-    borderWidth: 1,
-    width: 150,
-    marginBottom: 5,
-    paddingHorizontal: 10,
-    textAlign: 'center',
-  },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: 70,
-    marginTop: 5,
-  },
-  historyTitle: {
-    fontSize: 20,
-    marginTop: 20,
+    borderBottomWidth: 1,
+    fontSize: 18,
     marginBottom: 10,
   },
-  historyList: {
-    maxHeight: 350, 
+  picker: {
+    height: 50,
     width: '100%',
+    marginBottom: 20,
   },
-  historyItem: {
-    fontSize: 16,
-    paddingVertical: 2,
-    textAlign: 'center',
+  result: {
+    fontSize: 20,
+    marginTop: 20,
+    fontWeight: 'bold',
   },
 });
-
