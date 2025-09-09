@@ -1,3 +1,5 @@
+// valuuttamuunnin tehtävä
+
 import { StyleSheet, Text, Button, TextInput, View, FlatList } from 'react-native';
 import { useState, useEffect } from 'react';
 
