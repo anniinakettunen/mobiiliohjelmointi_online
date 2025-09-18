@@ -1,16 +1,53 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, TextInput, Button, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, TextInput, Button, Alert, ActivityIndicator } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
+import * as Location from 'expo-location';
 
 export default function App() {
-  const [address, setAddress] = useState('');
-  const [region, setRegion] = useState({
-    latitude: 60.200692,
-    longitude: 24.934302,
-    latitudeDelta: 0.0322,
-    longitudeDelta: 0.0221,
-  });
-  const [marker, setMarker] = useState(null);
+  const [location, setLocation] = useState(null);
+  const [address, setAddress] = useState('');     
+  const [marker, setMarker] = useState(null);      
+  const [loading, setLoading] = useState(true);   
+
+ 
+  useEffect(() => {
+    (async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('No permission to get location. Using fallback location.');
+         
+          setLocation({
+            latitude: 60.1699,
+            longitude: 24.9384,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          });
+          return;
+        }
+
+        const loc = await Location.getCurrentPositionAsync({});
+        setLocation({
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      } catch (error) {
+        Alert.alert('Error getting location. Using fallback location.', error.message);
+        // Fallback Helsinki
+        setLocation({
+          latitude: 60.1699,
+          longitude: 24.9384,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        });
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
 
   const fetchCoordinates = async () => {
     if (!address.trim()) {
@@ -23,10 +60,10 @@ export default function App() {
         `https://geocode.maps.co/search?q=${encodeURIComponent(address)}`
       );
 
-      const text = await response.text(); // luetaan ensin tekstinä
+      const text = await response.text();
       let data;
       try {
-        data = JSON.parse(text); // yritetään parsia JSONiksi
+        data = JSON.parse(text);
       } catch {
         Alert.alert('Error', 'API did not return valid JSON. Check the address.');
         return;
@@ -41,8 +78,8 @@ export default function App() {
       const latitude = parseFloat(lat);
       const longitude = parseFloat(lon);
 
-      setRegion({
-        ...region,
+      setLocation({
+        ...location,
         latitude,
         longitude,
       });
@@ -57,10 +94,18 @@ export default function App() {
     }
   };
 
+
+  if (loading || !location) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Kartta */}
-      <MapView style={styles.map} region={region}>
+      <MapView style={styles.map} region={location}>
         {marker && (
           <Marker
             coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
@@ -69,7 +114,6 @@ export default function App() {
         )}
       </MapView>
 
-      {/* Syöttökenttä ja nappi ALAS */}
       <View style={styles.inputContainer}>
         <TextInput
           style={styles.input}
@@ -109,5 +153,10 @@ const styles = StyleSheet.create({
     marginRight: 8,
     padding: 8,
     borderRadius: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
