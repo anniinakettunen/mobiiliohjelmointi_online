@@ -1,120 +1,105 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, FlatList, StyleSheet } from 'react-native';
-import * as SQLite from 'expo-sqlite';
+import { View, Text, TextInput, Button, FlatList, StyleSheet, Alert } from 'react-native';
+import { app } from './firebaseConfig'; 
+import { getDatabase, ref, push, onValue, remove } from 'firebase/database';
 
-const db = SQLite.openDatabaseSync('shoppingdb');
+const database = getDatabase(app);
 
 export default function App() {
   const [product, setProduct] = useState('');
   const [amount, setAmount] = useState('');
   const [items, setItems] = useState([]);
 
- 
-  const initialize = async () => {
-    try {
-      await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS shopping (
-          id INTEGER PRIMARY KEY NOT NULL,
-          product TEXT,
-          amount TEXT
-        );
-      `);
-      await updateList();
-    } catch (error) {
-      console.error('DB init error', error);
-    }
-  };
-
-  
-  const updateList = async () => {
-    try {
-      const result = await db.getAllAsync('SELECT * FROM shopping');
-      setItems(result);
-    } catch (error) {
-      console.error('Fetch error', error);
-    }
-  };
-
- 
-  const saveItem = async () => {
-    if (product && amount) {
-      try {
-        await db.runAsync('INSERT INTO shopping (product, amount) VALUES (?, ?)', product, amount);
-        setProduct('');
-        setAmount('');
-        await updateList();
-      } catch (error) {
-        console.error('Save error', error);
-      }
-    }
-  };
-
-
-  const deleteItem = async (id) => {
-    try {
-      await db.runAsync('DELETE FROM shopping WHERE id=?', id);
-      await updateList();
-    } catch (error) {
-      console.error('Delete error', error);
-    }
-  };
-
-  
+  // 🔄 Ladataan ostokset Firebase Realtime Databasesta
   useEffect(() => {
-    initialize();
+    const itemsRef = ref(database, 'items/');
+    const unsubscribe = onValue(itemsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const list = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        }));
+        setItems(list);
+      } else {
+        setItems([]);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
+  // 💾 Tallennetaan uusi ostos
+  const saveItem = () => {
+    if (product && amount) {
+      const newItem = { product, amount };
+      push(ref(database, 'items/'), newItem)
+        .then(() => {
+          setProduct('');
+          setAmount('');
+        })
+        .catch(error => {
+          Alert.alert('Save error', error.message);
+        });
+    } else {
+      Alert.alert('Error', 'Type product and amount first');
+    }
+  };
+
+  // 🗑️ Poistetaan ostos yksilöivän avaimen perusteella
+  const deleteItem = (id) => {
+    remove(ref(database, 'items/' + id))
+      .catch(error => {
+        Alert.alert('Delete error', error.message);
+      });
+  };
+
   return (
-  <View style={styles.container}>
-    <View style={styles.form}>
-      <TextInput
-        placeholder="Product"
-        style={styles.input}
-        onChangeText={(text) => setProduct(text)}
-        value={product}
+    <View style={styles.container}>
+      <View style={styles.form}>
+        <TextInput
+          placeholder="Product"
+          style={styles.input}
+          onChangeText={(text) => setProduct(text)}
+          value={product}
+        />
+        <TextInput
+          placeholder="Amount"
+          style={styles.input}
+          onChangeText={(text) => setAmount(text)}
+          value={amount}
+        />
+        <Button onPress={saveItem} title="SAVE" />
+      </View>
+
+      <Text style={styles.title}>Shopping list</Text>
+
+      <FlatList
+        keyExtractor={(item) => item.id}
+        data={items}
+        renderItem={({ item }) => (
+          <View style={styles.listItem}>
+            <Text>{item.product}, {item.amount}</Text>
+            <Text style={styles.bought} onPress={() => deleteItem(item.id)}>
+              Delete
+            </Text>
+          </View>
+        )}
       />
-      <TextInput
-        placeholder="Amount"
-        style={styles.input}
-        onChangeText={(text) => setAmount(text)}
-        value={amount}
-      />
-      <Button onPress={saveItem} title="SAVE" />
     </View>
-
-    <Text style={styles.title}>Shopping list</Text>
-
-    <FlatList
-      keyExtractor={(item) => item.id.toString()}
-      data={items}
-      renderItem={({ item }) => (
-        <View style={styles.listItem}>
-          <Text>
-            {item.product}, {item.amount}{' '}
-          </Text>
-          <Text
-            style={styles.bought}
-            onPress={() => deleteItem(item.id)}
-          >
-            bought
-          </Text>
-        </View>
-      )}
-    />
-  </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'flex-start', 
+    justifyContent: 'flex-start',
     alignItems: 'center',
     padding: 20,
     backgroundColor: '#fff',
   },
   form: {
-    marginTop: 120,  
+    marginTop: 120,
     width: '80%',
     alignItems: 'center',
   },
@@ -130,7 +115,7 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     marginBottom: 10,
     padding: 8,
-    width: '100%',   
+    width: '100%',
     borderRadius: 5,
   },
   listItem: {
@@ -141,6 +126,7 @@ const styles = StyleSheet.create({
     width: '80%',
   },
   bought: {
-    color: 'blue',
+    color: 'red',
+    fontWeight: 'bold',
   },
 });
