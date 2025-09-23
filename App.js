@@ -1,162 +1,146 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, Button, Alert, ActivityIndicator } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import * as Location from 'expo-location';
+import { View, Text, TextInput, Button, FlatList, StyleSheet } from 'react-native';
+import * as SQLite from 'expo-sqlite';
+
+const db = SQLite.openDatabaseSync('shoppingdb');
 
 export default function App() {
-  const [location, setLocation] = useState(null);
-  const [address, setAddress] = useState('');     
-  const [marker, setMarker] = useState(null);      
-  const [loading, setLoading] = useState(true);   
+  const [product, setProduct] = useState('');
+  const [amount, setAmount] = useState('');
+  const [items, setItems] = useState([]);
 
  
-  useEffect(() => {
-    (async () => {
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          Alert.alert('No permission to get location. Using fallback location.');
-         
-          setLocation({
-            latitude: 60.1699,
-            longitude: 24.9384,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          });
-          return;
-        }
-
-        const loc = await Location.getCurrentPositionAsync({});
-        setLocation({
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-      } catch (error) {
-        Alert.alert('Error getting location. Using fallback location.', error.message);
-        // Fallback Helsinki
-        setLocation({
-          latitude: 60.1699,
-          longitude: 24.9384,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        });
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-
-  const fetchCoordinates = async () => {
-    if (!address.trim()) {
-      Alert.alert('Please enter an address');
-      return;
-    }
-
+  const initialize = async () => {
     try {
-      const response = await fetch(
-        `https://geocode.maps.co/search?q=${encodeURIComponent(address)}`
-      );
-
-      const text = await response.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        Alert.alert('Error', 'API did not return valid JSON. Check the address.');
-        return;
-      }
-
-      if (!data || data.length === 0) {
-        Alert.alert('Address not found');
-        return;
-      }
-
-      const { lat, lon, display_name } = data[0];
-      const latitude = parseFloat(lat);
-      const longitude = parseFloat(lon);
-
-      setLocation({
-        ...location,
-        latitude,
-        longitude,
-      });
-
-      setMarker({
-        latitude,
-        longitude,
-        title: display_name,
-      });
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS shopping (
+          id INTEGER PRIMARY KEY NOT NULL,
+          product TEXT,
+          amount TEXT
+        );
+      `);
+      await updateList();
     } catch (error) {
-      Alert.alert('Error fetching coordinates', error.message);
+      console.error('DB init error', error);
+    }
+  };
+
+  
+  const updateList = async () => {
+    try {
+      const result = await db.getAllAsync('SELECT * FROM shopping');
+      setItems(result);
+    } catch (error) {
+      console.error('Fetch error', error);
+    }
+  };
+
+ 
+  const saveItem = async () => {
+    if (product && amount) {
+      try {
+        await db.runAsync('INSERT INTO shopping (product, amount) VALUES (?, ?)', product, amount);
+        setProduct('');
+        setAmount('');
+        await updateList();
+      } catch (error) {
+        console.error('Save error', error);
+      }
     }
   };
 
 
-  if (loading || !location) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
+  const deleteItem = async (id) => {
+    try {
+      await db.runAsync('DELETE FROM shopping WHERE id=?', id);
+      await updateList();
+    } catch (error) {
+      console.error('Delete error', error);
+    }
+  };
+
+  
+  useEffect(() => {
+    initialize();
+  }, []);
 
   return (
-    <View style={styles.container}>
-      <MapView style={styles.map} region={location}>
-        {marker && (
-          <Marker
-            coordinate={{ latitude: marker.latitude, longitude: marker.longitude }}
-            title={marker.title}
-          />
-        )}
-      </MapView>
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter address"
-          value={address}
-          onChangeText={setAddress}
-        />
-        <Button title="Show" onPress={fetchCoordinates} />
-      </View>
+  <View style={styles.container}>
+    <View style={styles.form}>
+      <TextInput
+        placeholder="Product"
+        style={styles.input}
+        onChangeText={(text) => setProduct(text)}
+        value={product}
+      />
+      <TextInput
+        placeholder="Amount"
+        style={styles.input}
+        onChangeText={(text) => setAmount(text)}
+        value={amount}
+      />
+      <Button onPress={saveItem} title="SAVE" />
     </View>
+
+    <Text style={styles.title}>Shopping list</Text>
+
+    <FlatList
+      keyExtractor={(item) => item.id.toString()}
+      data={items}
+      renderItem={({ item }) => (
+        <View style={styles.listItem}>
+          <Text>
+            {item.product}, {item.amount}{' '}
+          </Text>
+          <Text
+            style={styles.bought}
+            onPress={() => deleteItem(item.id)}
+          >
+            bought
+          </Text>
+        </View>
+      )}
+    />
+  </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  map: { flex: 1 },
-  inputContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 10,
-    right: 10,
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    padding: 8,
-    borderRadius: 8,
+  container: {
+    flex: 1,
+    justifyContent: 'flex-start', 
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  form: {
+    marginTop: 120,  
+    width: '80%',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 22,
+    marginTop: 30,
+    marginBottom: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   input: {
-    flex: 1,
-    borderColor: '#ccc',
     borderWidth: 1,
-    marginRight: 8,
+    borderColor: '#ccc',
+    marginBottom: 10,
     padding: 8,
-    borderRadius: 4,
+    width: '100%',   
+    borderRadius: 5,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  listItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 5,
+    width: '80%',
+  },
+  bought: {
+    color: 'blue',
   },
 });
