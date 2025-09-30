@@ -1,48 +1,49 @@
 import React, { useState } from 'react';
-import { View, Text, Button, FlatList, StyleSheet, Alert } from 'react-native';
-import * as Contacts from 'expo-contacts';
+import { View, Text, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
+import * as Speech from 'expo-speech';
 
 export default function App() {
-  const [contacts, setContacts] = useState([]);
+  const [text, setText] = useState('');
+  const [language, setLanguage] = useState('en-US');
 
-  const getContacts = async () => {
-    const { status } = await Contacts.requestPermissionsAsync();
-    if (status === 'granted') {
-      const { data } = await Contacts.getContactsAsync({
-        fields: [Contacts.Fields.PhoneNumbers],
-      });
-
-      if (data.length > 0) {
-        setContacts(data);
-      } else {
-        Alert.alert('Warning', 'No contacts found.');
-      }
-    } else {
-      Alert.alert('Permission denied', 'Cannot access contacts without permission.');
-    }
-  };
-
-  const renderItem = ({ item }) => {
-    const phone = item.phoneNumbers && item.phoneNumbers.length > 0
-      ? item.phoneNumbers[0].number
-      : 'No number';
-
-    return (
-      <View style={styles.contactItem}>
-        <Text style={styles.contactText}>{item.name}</Text>
-        <Text style={styles.numberText}>{phone}</Text>
-      </View>
-    );
+  const speak = () => {
+    if (text.trim().length === 0) return;
+    Speech.speak(text, { language });
   };
 
   return (
     <View style={styles.container}>
-      <Button title="Get Contacts" onPress={getContacts} />
-      <FlatList
-        data={contacts}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
+      <Text style={styles.label}>Kirjoita teksti:</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Kirjoita tähän..."
+        value={text}
+        onChangeText={setText}
       />
+
+      <Text style={styles.label}>Valitse kieli:</Text>
+      <View style={styles.languageContainer}>
+        <TouchableOpacity
+          style={[styles.langButton, language === 'en-US' && styles.langButtonSelected]}
+          onPress={() => setLanguage('en-US')}
+        >
+          <Text style={styles.langText}>English</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.langButton, language === 'fi-FI' && styles.langButtonSelected]}
+          onPress={() => setLanguage('fi-FI')}
+        >
+          <Text style={styles.langText}>Suomi</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.langButton, language === 'sv-SE' && styles.langButtonSelected]}
+          onPress={() => setLanguage('sv-SE')}
+        >
+          <Text style={styles.langText}>Svenska</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Button title="Puhu" onPress={speak} />
     </View>
   );
 }
@@ -50,20 +51,39 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
     padding: 20,
-    paddingTop: 50,
+    backgroundColor: '#ecf0f1',
   },
-  contactItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  contactText: {
+  label: {
     fontSize: 16,
+    marginVertical: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    padding: 10,
+    fontSize: 16,
+    backgroundColor: '#fff',
+  },
+  languageContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 12,
+  },
+  langButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    backgroundColor: '#d0d0d0',
+  },
+  langButtonSelected: {
+    backgroundColor: '#4CAF50',
+  },
+  langText: {
+    color: '#fff',
     fontWeight: 'bold',
   },
-  numberText: {
-    fontSize: 14,
-    color: '#555',
-  },
 });
+
