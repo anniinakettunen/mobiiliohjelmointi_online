@@ -1,62 +1,69 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Image, TextInput, Button, FlatList, StyleSheet, Alert } from 'react-native';
-import { CameraView, Camera, useCameraPermissions } from 'expo-camera';
-import { getDatabase, ref, push, onValue, remove } from 'firebase/database';
-
+import React, { useState } from 'react';
+import { View, Text, Button, FlatList, StyleSheet, Alert } from 'react-native';
+import * as Contacts from 'expo-contacts';
 
 export default function App() {
-  const [photoName, setPhotoName] = useState('');
-  const [photoBase64, setPhotoBase64] = useState('');
-  const [permission, requestPermission] = useCameraPermissions();
+  const [contacts, setContacts] = useState([]);
 
-  const camera = useRef(null);
+  const getContacts = async () => {
+    const { status } = await Contacts.requestPermissionsAsync();
+    if (status === 'granted') {
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.PhoneNumbers],
+      });
 
-  
-if (!permission) {
-  // Camera permissions are still loading.
-  return <View />;
-}
+      if (data.length > 0) {
+        setContacts(data);
+      } else {
+        Alert.alert('Warning', 'No contacts found.');
+      }
+    } else {
+      Alert.alert('Permission denied', 'Cannot access contacts without permission.');
+    }
+  };
 
-if (!permission.granted) {
-  // Camera permissions are not granted yet.
-  return(
+  const renderItem = ({ item }) => {
+    const phone = item.phoneNumbers && item.phoneNumbers.length > 0
+      ? item.phoneNumbers[0].number
+      : 'No number';
+
+    return (
+      <View style={styles.contactItem}>
+        <Text style={styles.contactText}>{item.name}</Text>
+        <Text style={styles.numberText}>{phone}</Text>
+      </View>
+    );
+  };
+
+  return (
     <View style={styles.container}>
-      <Button onPress={requestPermission} title="grant permission" />
+      <Button title="Get Contacts" onPress={getContacts} />
+      <FlatList
+        data={contacts}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+      />
     </View>
   );
-}
-
-const snap = async () => {
-  if (camera) {
-    const photo = await camera.current.takePictureAsync({base64: true});
-    setPhotoName(photo.uri);
-    setPhotoBase64(photo.base64); 
-  }
-};
-
-return (
-  <View style={{ flex: 1 }}>
-    <CameraView style={{ flex: 1, minWidth: "100%" }} ref={camera} />
-    <Button title="Take Photo" onPress={snap} />
-    <View style={{ flex: 1 }}>
-      {photoName && photoBase64 ? (
-        <>
-          <Image style={{ flex: 1 }} source={{ uri: photoName }} />
-          <Image style={{ flex: 1 }} source={{ uri: `data:image/jpg;base64,${photoBase64}` }} />
-        </>
-      ) : (
-        <Text>No photo taken yet.</Text>
-      )}      
-    </View>
-  </View>
-);
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 20,
+    paddingTop: 50,
   },
-  
+  contactItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
+  },
+  contactText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  numberText: {
+    fontSize: 14,
+    color: '#555',
+  },
 });
